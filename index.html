@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Davies Snow Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f2efe8;
+  --paper: rgba(255,255,255,0.82);
+  --paper-strong: rgba(255,255,255,0.92);
+  --line: rgba(20,22,18,0.12);
+  --text: #171a17;
+  --muted: #5e655d;
+  --blue: #2b6cb0;
+  --blue-soft: rgba(43,108,176,0.12);
+  --green: #23705b;
+  --gold: #b9781b;
+  --shadow: 0 22px 60px rgba(21,26,22,0.08);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(43,108,176,0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(35,112,91,0.12), transparent 28%),
+    linear-gradient(180deg, #f7f3ec 0%, var(--bg) 100%);
+}
+.shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 22px 56px;
+}
+.hero {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.hero-band {
+  height: 12px;
+  background: linear-gradient(90deg, var(--blue), var(--green), var(--gold));
+}
+.hero-body {
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+}
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  max-width: 11ch;
+}
+.lede {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 1.03rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.chip {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+.card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  min-height: 280px;
+  border-radius: 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+}
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.kicker {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.links {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+.btn.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn.secondary {
+  background: var(--blue-soft);
+}
+.slug {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+footer {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+footer code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.86em;
+}
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-band"></div>
+      <div class="hero-body">
+        <div class="eyebrow">GitHub Pages Static Site</div>
+        <h1>Davies Snow Toolset</h1>
+        <p class="lede">
+          Three self-contained field tools for sensor placement, arm clearance, and snow-shadow geometry.
+          Each card below links to a clean GitHub Pages path and to the underlying source HTML file.
+        </p>
+        <div class="meta">
+          <div class="chip">Static HTML only</div>
+          <div class="chip">No build step required</div>
+          <div class="chip">Ready for Pages from <code>main</code> root</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="kicker">Placement Analysis</div>
+        <div>
+          <h2>Shadow Sweep</h2>
+          <p>Interactive map, timeline, and direction comparison for mast, leg, panel, and enclosure shadow risk.</p>
+        </div>
+        <div class="slug">/shadow-sweep/</div>
+        <div class="links">
+          <a class="btn primary" href="./shadow-sweep/">Open Page</a>
+          <a class="btn secondary" href="./shadow_sweep.html">Source HTML</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="kicker">Beam Geometry</div>
+        <div>
+          <h2>HC-SR04 Arm Clearance</h2>
+          <p>Arm-length and tripod-leg clearance calculator with corrected outer-face leg interference math.</p>
+        </div>
+        <div class="slug">/hcsr04-arm-length-beam-clearance/</div>
+        <div class="links">
+          <a class="btn primary" href="./hcsr04-arm-length-beam-clearance/">Open Page</a>
+          <a class="btn secondary" href="./hcsr04_arm_length_beam_clearance.html">Source HTML</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="kicker">Station Layout</div>
+        <div>
+          <h2>Snow Station Planner</h2>
+          <p>Plan and side-view station geometry with corrected clean-zone spacing and shadow-hit status logic.</p>
+        </div>
+        <div class="slug">/snow-station-planner/</div>
+        <div class="links">
+          <a class="btn primary" href="./snow-station-planner/">Open Page</a>
+          <a class="btn secondary" href="./snow_station_planner.html">Source HTML</a>
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      <span>Enable GitHub Pages from <code>main</code> / root to publish this site.</span>
+      <span>Repository page base: <code>/random_tools/</code></span>
+    </footer>
+  </main>
+</body>
+</html>
