@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HC-SR04 Arm Length & Beam Clearance Calculator</title>
+<style>
+  :root {
+    --color-text-primary: #2c2c2a;
+    --color-text-secondary: #5f5e5a;
+    --color-text-danger: #A32D2D;
+    --color-background-success: #EAF3DE;
+    --color-text-success: #3B6D11;
+    --color-background-warning: #FAEEDA;
+    --color-text-warning: #854F0B;
+    --color-background-danger: #FCEBEB;
+    --color-border-secondary: rgba(0,0,0,0.15);
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-text-primary: #c2c0b6;
+      --color-text-secondary: #888780;
+      --color-text-danger: #F09595;
+      --color-background-success: #173404;
+      --color-text-success: #97C459;
+      --color-background-warning: #412402;
+      --color-text-warning: #FAC775;
+      --color-background-danger: #501313;
+      --color-border-secondary: rgba(255,255,255,0.15);
+    }
+    body { background: #1a1a1a; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); padding: 16px; max-width: 720px; margin: 0 auto; color: var(--color-text-primary); }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0 0; font-size: 13px; color: var(--color-text-secondary); }
+  .controls label { display: flex; align-items: center; gap: 6px; }
+  .controls input[type=range] { width: 150px; }
+  .readout { font-family: var(--font-mono); font-size: 13px; min-width: 48px; color: var(--color-text-primary); font-weight: 500; }
+  .status { font-size: 13px; padding: 6px 10px; border-radius: 6px; margin-top: 6px; line-height: 1.5; }
+  .status.good { background: var(--color-background-success); color: var(--color-text-success); }
+  .status.warn { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .status.bad { background: var(--color-background-danger); color: var(--color-text-danger); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--color-text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+  .credit { margin-top: 12px; font-size: 11px; color: var(--color-text-secondary); }
+</style>
+</head>
+<body>
+<h1>HC-SR04 snow depth sensor: arm length & beam clearance</h1>
+
+<svg id="diagram" width="100%" viewBox="0 0 680 560"></svg>
+
+<div class="controls">
+  <label>Arm length: <input type="range" id="arm-slider" min="4" max="36" value="12" step="1" oninput="update()"> <span class="readout" id="arm-val">12 in</span></label>
+  <label>Mast diameter: <input type="range" id="mast-slider" min="1" max="3" value="2" step="0.5" oninput="update()"> <span class="readout" id="mast-val">2 in</span></label>
+</div>
+<div class="status" id="status-msg"></div>
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(29,158,117,0.18)"></div> Clear beam</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(226,75,74,0.22)"></div> Interference</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#EF9F27"></div> Beam edge (15 deg)</div>
+</div>
+<div class="credit">Davies Snow Depth Sensor Network -- Bingham Research Center, USU Uintah Basin</div>
+
+<script>
+const S = 4.5;
+const TOTAL_H = 84;
+const LEG_LEN = 19;
+const LEG_ANGLE_DEG = 25;
+const HALF_ANGLE = 15;
+const tan15 = Math.tan(HALF_ANGLE * Math.PI / 180);
+const LEG_DY = LEG_LEN * Math.cos(LEG_ANGLE_DEG * Math.PI / 180);
+const LEG_DX = LEG_LEN * Math.sin(LEG_ANGLE_DEG * Math.PI / 180);
+const LEG_THICK = 1.0;
+
+const GND_Y = 460;
+const MAST_X = 210;
+
+function beamLeftEdge(d, armLen) {
+  return armLen - d * tan15;
+}
+
+function rightLegOuterX(d) {
+  const D0 = TOTAL_H - LEG_DY;
+  if (d < D0 || d > TOTAL_H) return 0;
+  return LEG_DX * (d - D0) / LEG_DY + LEG_THICK / 2;
+}
+
+function rightLegInnerX(d) {
+  const D0 = TOTAL_H - LEG_DY;
+  if (d < D0 || d > TOTAL_H) return 0;
+  return LEG_DX * (d - D0) / LEG_DY - LEG_THICK / 2;
+}
+
+function findLegInterferenceDepth(armLen, mastR) {
+  const D0 = TOTAL_H - LEG_DY;
+  const denom = tan15 + LEG_DX / LEG_DY;
+  const numer = armLen + (LEG_DX * D0) / LEG_DY - LEG_THICK / 2;
+  const d = numer / denom;
+  if (d >= D0 && d <= TOTAL_H) return d;
+  return TOTAL_H + 1;
+}
+
+function findMastInterferenceDepth(armLen, mastR) {
+  return (armLen - mastR) / tan15;
+}
+
+function update() {
+  const armLen = +document.getElementById('arm-slider').value;
+  const mastDia = +document.getElementById('mast-slider').value;
+  const mastR = mastDia / 2;
+  document.getElementById('arm-val').textContent = armLen + ' in';
+  document.getElementById('mast-val').textContent = mastDia + ' in';
+
+  const mastRpx = mastR * S;
+  const junctionY = GND_Y - LEG_DY * S;
+  const topY = GND_Y - TOTAL_H * S;
+  const sensorX = MAST_X + armLen * S;
+  const armY = topY;
+
+  const mastIntDepth = findMastInterferenceDepth(armLen, mastR);
+  const legIntDepth = findLegInterferenceDepth(armLen, mastR);
+  const worstDepth = Math.min(mastIntDepth, legIntDepth);
+  const obstruction = mastIntDepth <= legIntDepth ? 'mast' : 'leg';
+
+  const beamLeftAtGnd = sensorX - TOTAL_H * S * tan15;
+  const beamRightAtGnd = sensorX + TOTAL_H * S * tan15;
+
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const groundCol = dark ? '#3d3d3a' : '#d3d1c7';
+  const mastCol = dark ? '#5f5e5a' : '#888780';
+  const legCol = dark ? '#555553' : '#73726c';
+  const legHighlight = dark ? '#E24B4A' : '#A32D2D';
+  const armCol = dark ? '#72243E' : '#993556';
+  const sensorCol = dark ? '#378ADD' : '#185FA5';
+  const beamEdge = '#EF9F27';
+  const clearFill = 'rgba(29,158,117,0.18)';
+  const interfereFill = 'rgba(226,75,74,0.22)';
+  const dimLine = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
+  const dimText = dark ? '#b4b2a9' : '#5f5e5a';
+  const labelCol = dark ? '#c2c0b6' : '#3d3d3a';
+  const subCol = dark ? '#888780' : '#888780';
+  const hubCol = dark ? '#888780' : '#5f5e5a';
+
+  let svg = '';
+
+  svg += `<rect x="0" y="${GND_Y}" width="680" height="100" fill="${groundCol}" opacity="0.3"/>`;
+  svg += `<text x="28" y="${GND_Y + 18}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Ground</text>`;
+
+  const intY = topY + worstDepth * S;
+  const clippedIntY = Math.min(intY, GND_Y);
+
+  if (worstDepth < TOTAL_H) {
+    const leftAtInt = sensorX - worstDepth * S * tan15;
+    const rightAtInt = sensorX + worstDepth * S * tan15;
+    svg += `<polygon points="${sensorX},${armY + 8} ${leftAtInt},${clippedIntY} ${rightAtInt},${clippedIntY}" fill="${clearFill}"/>`;
+    if (clippedIntY < GND_Y) {
+      svg += `<polygon points="${rightAtInt},${clippedIntY} ${beamRightAtGnd},${GND_Y} ${sensorX},${GND_Y} ${sensorX},${clippedIntY}" fill="${clearFill}" opacity="0.7"/>`;
+      const obstructXTop = obstruction === 'mast'
+        ? MAST_X + mastRpx
+        : MAST_X + rightLegOuterX(worstDepth) * S;
+      const obstructXBot = obstruction === 'mast'
+        ? MAST_X + mastRpx
+        : MAST_X + (LEG_DX + LEG_THICK / 2) * S;
+      svg += `<polygon points="${leftAtInt},${clippedIntY} ${beamLeftAtGnd},${GND_Y} ${obstructXBot},${GND_Y} ${obstructXTop},${clippedIntY}" fill="${interfereFill}"/>`;
+    }
+  } else {
+    svg += `<polygon points="${sensorX},${armY + 8} ${beamLeftAtGnd},${GND_Y} ${beamRightAtGnd},${GND_Y}" fill="${clearFill}"/>`;
+  }
+
+  svg += `<line x1="${sensorX}" y1="${armY + 8}" x2="${beamLeftAtGnd}" y2="${GND_Y}" stroke="${beamEdge}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.8"/>`;
+  svg += `<line x1="${sensorX}" y1="${armY + 8}" x2="${beamRightAtGnd}" y2="${GND_Y}" stroke="${beamEdge}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.8"/>`;
+  svg += `<line x1="${sensorX}" y1="${armY + 8}" x2="${sensorX}" y2="${GND_Y}" stroke="${beamEdge}" stroke-width="1" stroke-dasharray="3 3" opacity="0.35"/>`;
+
+  if (worstDepth < TOTAL_H && clippedIntY < GND_Y) {
+    const markerX = obstruction === 'mast'
+      ? MAST_X + mastRpx
+      : MAST_X + rightLegOuterX(worstDepth) * S;
+    svg += `<circle cx="${markerX}" cy="${clippedIntY}" r="4" fill="none" stroke="var(--color-text-danger)" stroke-width="1.5"/>`;
+    const aboveGnd = (TOTAL_H - worstDepth).toFixed(1);
+    const obLabel = obstruction === 'mast' ? 'Beam clips mast' : 'Beam clips right leg';
+    svg += `<line x1="${markerX + 6}" y1="${clippedIntY}" x2="${markerX + 30}" y2="${clippedIntY}" stroke="rgba(226,75,74,0.5)" stroke-width="1" stroke-dasharray="3 2"/>`;
+    svg += `<text x="${markerX + 34}" y="${clippedIntY - 2}" font-family="var(--font-sans)" font-size="11" fill="var(--color-text-danger)" font-weight="500">${obLabel}</text>`;
+    svg += `<text x="${markerX + 34}" y="${clippedIntY + 14}" font-family="var(--font-sans)" font-size="11" fill="var(--color-text-danger)">${aboveGnd} in above ground</text>`;
+  }
+
+  const legIsHit = obstruction === 'leg' && worstDepth < TOTAL_H;
+  const rightLegColor = legIsHit ? legHighlight : legCol;
+
+  svg += `<line x1="${MAST_X}" y1="${junctionY}" x2="${MAST_X - LEG_DX * S}" y2="${GND_Y}" stroke="${legCol}" stroke-width="4" stroke-linecap="round"/>`;
+  svg += `<line x1="${MAST_X}" y1="${junctionY}" x2="${MAST_X + LEG_DX * S}" y2="${GND_Y}" stroke="${rightLegColor}" stroke-width="4" stroke-linecap="round"/>`;
+  if (legIsHit) {
+    svg += `<line x1="${MAST_X}" y1="${junctionY}" x2="${MAST_X + LEG_DX * S}" y2="${GND_Y}" stroke="${rightLegColor}" stroke-width="8" stroke-linecap="round" opacity="0.2"/>`;
+  }
+  svg += `<line x1="${MAST_X}" y1="${junctionY}" x2="${MAST_X}" y2="${GND_Y}" stroke="${legCol}" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 3"/>`;
+
+  svg += `<ellipse cx="${MAST_X - LEG_DX * S}" cy="${GND_Y}" rx="5" ry="3" fill="${legCol}" opacity="0.5"/>`;
+  svg += `<ellipse cx="${MAST_X + LEG_DX * S}" cy="${GND_Y}" rx="5" ry="3" fill="${rightLegColor}" opacity="0.5"/>`;
+
+  svg += `<ellipse cx="${MAST_X}" cy="${junctionY}" rx="${mastRpx + 5}" ry="5" fill="none" stroke="${hubCol}" stroke-width="2"/>`;
+
+  svg += `<rect x="${MAST_X - mastRpx}" y="${topY}" width="${mastRpx * 2}" height="${junctionY - topY}" fill="${mastCol}" opacity="0.5" rx="2"/>`;
+
+  svg += `<rect x="${MAST_X - mastRpx - 2}" y="${armY - 6}" width="${mastRpx * 2 + 4}" height="12" rx="2" fill="${armCol}" opacity="0.35"/>`;
+  svg += `<line x1="${MAST_X + mastRpx}" y1="${armY}" x2="${sensorX}" y2="${armY}" stroke="${armCol}" stroke-width="4" stroke-linecap="round"/>`;
+  svg += `<rect x="${sensorX - 12}" y="${armY - 6}" width="24" height="16" rx="3" fill="${sensorCol}" opacity="0.9"/>`;
+  svg += `<circle cx="${sensorX - 4}" cy="${armY + 6}" r="3" fill="${sensorCol}" opacity="0.4"/>`;
+  svg += `<circle cx="${sensorX + 4}" cy="${armY + 6}" r="3" fill="${sensorCol}" opacity="0.4"/>`;
+  svg += `<text x="${sensorX}" y="${armY + 26}" font-family="var(--font-sans)" font-size="11" fill="${sensorCol}" text-anchor="middle" font-weight="500">HC-SR04</text>`;
+
+  const dX = 44;
+  svg += `<line x1="${dX}" y1="${topY}" x2="${dX}" y2="${GND_Y}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<line x1="${dX - 5}" y1="${topY}" x2="${dX + 5}" y2="${topY}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<line x1="${dX - 5}" y1="${GND_Y}" x2="${dX + 5}" y2="${GND_Y}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<text x="${dX}" y="${(topY + GND_Y) / 2 - 6}" font-family="var(--font-sans)" font-size="12" fill="${dimText}" text-anchor="middle">7 ft</text>`;
+  svg += `<text x="${dX}" y="${(topY + GND_Y) / 2 + 10}" font-family="var(--font-sans)" font-size="11" fill="${dimText}" text-anchor="middle">(84 in)</text>`;
+
+  const armDimY = topY - 26;
+  svg += `<line x1="${MAST_X}" y1="${armDimY}" x2="${sensorX}" y2="${armDimY}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<line x1="${MAST_X}" y1="${armDimY - 5}" x2="${MAST_X}" y2="${armDimY + 5}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<line x1="${sensorX}" y1="${armDimY - 5}" x2="${sensorX}" y2="${armDimY + 5}" stroke="${dimLine}" stroke-width="1"/>`;
+  svg += `<text x="${(MAST_X + sensorX) / 2}" y="${armDimY - 6}" font-family="var(--font-sans)" font-size="12" fill="${armCol}" text-anchor="middle" font-weight="500">Arm: ${armLen} in</text>`;
+
+  const fpDia = (2 * TOTAL_H * tan15).toFixed(1);
+  svg += `<line x1="${beamLeftAtGnd}" y1="${GND_Y + 12}" x2="${beamRightAtGnd}" y2="${GND_Y + 12}" stroke="${beamEdge}" stroke-width="1" opacity="0.5"/>`;
+  svg += `<text x="${(beamLeftAtGnd + beamRightAtGnd) / 2}" y="${GND_Y + 28}" font-family="var(--font-sans)" font-size="11" fill="${beamEdge}" text-anchor="middle">Footprint: ${fpDia} in</text>`;
+
+  svg += `<text x="${MAST_X + LEG_DX * S + 8}" y="${(junctionY + GND_Y) / 2}" font-family="var(--font-sans)" font-size="11" fill="${legIsHit ? 'var(--color-text-danger)' : subCol}">Right leg</text>`;
+
+  const minArmMast = Math.ceil(mastR + TOTAL_H * tan15);
+  const minArmLeg = Math.ceil(LEG_DX + LEG_THICK / 2 + TOTAL_H * tan15);
+  const minArmTotal = Math.max(minArmMast, minArmLeg);
+
+  svg += `<text x="478" y="${topY + 14}" font-family="var(--font-sans)" font-size="12" fill="${labelCol}" font-weight="500">Key numbers</text>`;
+  svg += `<text x="478" y="${topY + 32}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Beam half-angle: 15 deg</text>`;
+  svg += `<text x="478" y="${topY + 48}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Clear depth: ${Math.min(worstDepth, TOTAL_H).toFixed(1)} in</text>`;
+  svg += `<text x="478" y="${topY + 64}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Obstruction: ${worstDepth >= TOTAL_H ? 'none' : obstruction}</text>`;
+  svg += `<text x="478" y="${topY + 84}" font-family="var(--font-sans)" font-size="12" fill="${labelCol}" font-weight="500">Min arm for full clear</text>`;
+  svg += `<text x="478" y="${topY + 100}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Past mast: ${minArmMast} in</text>`;
+  svg += `<text x="478" y="${topY + 116}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Past legs: ${minArmLeg} in</text>`;
+  svg += `<text x="478" y="${topY + 132}" font-family="var(--font-sans)" font-size="11" fill="${sensorCol}" font-weight="500">Use at least: ${minArmTotal} in</text>`;
+  svg += `<text x="478" y="${topY + 152}" font-family="var(--font-sans)" font-size="11" fill="${subCol}">Leg spread: ${LEG_DX.toFixed(1)} in</text>`;
+
+  document.getElementById('diagram').innerHTML = svg;
+
+  const el = document.getElementById('status-msg');
+  if (worstDepth >= TOTAL_H) {
+    el.className = 'status good';
+    el.textContent = 'Full clearance! Beam clears both the mast and all tripod legs to the ground.';
+  } else {
+    const aboveGnd = (TOTAL_H - worstDepth).toFixed(1);
+    const what = obstruction === 'mast' ? 'the mast pole' : 'the right tripod leg';
+    if (worstDepth >= 60) {
+      el.className = 'status warn';
+      el.textContent = `Partial interference with ${what}. Beam blocked starting ${aboveGnd} in above ground.`;
+    } else {
+      el.className = 'status bad';
+      el.textContent = `Major interference with ${what}. Beam blocked starting ${aboveGnd} in above ground. Arm too short.`;
+    }
+  }
+}
+
+update();
+</script>
+</body>
+</html>

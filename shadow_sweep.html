@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snow Sensor Shadow Sweep - Station Placement Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0f14;
+  --surface: #141820;
+  --surface2: #1a1f2a;
+  --border: #262d3a;
+  --text: #c8cdd8;
+  --text2: #7a8194;
+  --accent: #3b9eff;
+  --green: #34d399;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --purple: #a78bfa;
+  --coral: #fb923c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+}
+header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+header span {
+  font-size: 12px;
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+}
+@media (max-width: 800px) {
+  .grid { grid-template-columns: 1fr; }
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.panel-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+svg#map { display: block; width: 100%; }
+svg#timeline { display: block; width: 100%; margin-top: 12px; }
+svg#compare { display: block; width: 100%; }
+
+/* Controls */
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctrl-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  min-width: 72px;
+  text-align: right;
+}
+.ctrl-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  min-width: 48px;
+}
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+
+.btn-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.btn-group-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+.btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+.btn:hover { border-color: var(--text2); color: var(--text); }
+.btn.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.warn { background: #7f1d1d; border-color: var(--red); color: var(--red); }
+
+.play-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--green);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.play-btn:hover { border-color: var(--green); background: #162220; }
+
+.status-bar {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  line-height: 1.5;
+}
+.status-bar b { font-weight: 600; }
+
+.legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.legend span { display: flex; align-items: center; gap: 4px; }
+.swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Shadow Sweep</h1>
+    <span>sensor placement tool // Davies Snow Depth Network</span>
+  </header>
+
+  <div class="grid">
+    <!-- Left: Map + Timeline -->
+    <div>
+      <div class="panel">
+        <svg id="map" viewBox="0 0 680 500"></svg>
+        <svg id="timeline" viewBox="0 0 680 64"></svg>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <button class="play-btn" id="playBtn" onclick="togglePlay()">&#9654;</button>
+          <div style="flex:1">
+            <div class="ctrl-row">
+              <span class="ctrl-label">time</span>
+              <input type="range" id="timeSlider" min="6" max="18" value="12" step="0.125" oninput="stopPlay();update()">
+              <span class="ctrl-val" id="timeVal">12:00 PM</span>
+            </div>
+          </div>
+        </div>
+        <div class="ctrl-row" style="margin-top:6px">
+          <span class="ctrl-label">arm length</span>
+          <input type="range" id="armSlider" min="8" max="42" value="36" step="1" oninput="update()">
+          <span class="ctrl-val" id="armVal">36"</span>
+        </div>
+        <div id="statusBox" class="status-bar"></div>
+        <div class="legend">
+          <span><span class="swatch" style="background:#f87171"></span> mast shadow</span>
+          <span><span class="swatch" style="background:#fb923c"></span> panel shadow</span>
+          <span><span class="swatch" style="background:#a78bfa"></span> box shadow</span>
+          <span><span class="swatch" style="background:#6b7280"></span> leg shadows</span>
+          <span><span class="swatch" style="background:rgba(52,211,153,0.3);border:1px solid #34d399"></span> beam clear</span>
+          <span><span class="swatch" style="background:rgba(248,113,113,0.2);border:1px solid #f87171"></span> beam hit</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Controls + Comparison -->
+    <div class="controls">
+      <div class="panel">
+        <div class="panel-title">Season</div>
+        <div class="btn-group" id="seasonBtns">
+          <button class="btn" id="sWin" onclick="season='winter';update()">Winter</button>
+          <button class="btn" id="sEq" onclick="season='equinox';update()">Equinox</button>
+          <button class="btn" id="sSum" onclick="season='summer';update()">Summer</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Sensor arm direction</div>
+        <div class="btn-group" id="dirBtns">
+          <button class="btn" id="dN" onclick="setDir('north')">N</button>
+          <button class="btn" id="dNE" onclick="setDir('northeast')">NE</button>
+          <button class="btn" id="dE" onclick="setDir('east')">E</button>
+          <button class="btn" id="dSE" onclick="setDir('southeast')">SE</button>
+          <button class="btn" id="dS" onclick="setDir('south')">S</button>
+          <button class="btn" id="dSW" onclick="setDir('southwest')">SW</button>
+          <button class="btn" id="dW" onclick="setDir('west')">W</button>
+          <button class="btn" id="dNW" onclick="setDir('northwest')">NW</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Electronics box direction</div>
+        <div class="btn-group" id="boxBtns">
+          <button class="btn" id="bN" onclick="setBox('north')">N</button>
+          <button class="btn" id="bNE" onclick="setBox('northeast')">NE</button>
+          <button class="btn" id="bE" onclick="setBox('east')">E</button>
+          <button class="btn" id="bSE" onclick="setBox('southeast')">SE</button>
+          <button class="btn" id="bS" onclick="setBox('south')">S</button>
+          <button class="btn" id="bSW" onclick="setBox('southwest')">SW</button>
+          <button class="btn" id="bW" onclick="setBox('west')">W</button>
+          <button class="btn" id="bNW" onclick="setBox('northwest')">NW</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Direction comparison</div>
+        <svg id="compare" viewBox="0 0 340 220"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const R=Math.PI/180, LAT=40.45, MAST_H=84, LEG_LEN=19, LEG_ANG=28*R;
+const HUB_H=LEG_LEN*Math.cos(LEG_ANG), LEG_SP=LEG_LEN*Math.sin(LEG_ANG);
+const PW=20, PH_P=16, PTILT=40*R, PM_H=78;
+const P_PROJ=PH_P*Math.cos(PTILT), P_VERT=PH_P*Math.sin(PTILT);
+const BOX_W=10, BOX_D=8, BOX_HT=5, BOX_MOUNT=60, PANEL_CY=-6;
+const BEAM_HA=15*R;
+const MAST_R=1, LEG_R=0.5;
+const CX=340, CY=260, SC=3.2;
+let season='winter', armDir='east', boxDir='east';
+let playing=false, animId=null;
+
+const DANG={north:0,northeast:45,east:90,southeast:135,south:180,southwest:225,west:270,northwest:315};
+const DLBL={north:'N',northeast:'NE',east:'E',southeast:'SE',south:'S',southwest:'SW',west:'W',northwest:'NW'};
+
+function toS(x,y){return[CX+x*SC,CY-y*SC]}
+function sunPos(hr,decl){
+  const ha=(hr-12)*15*R;
+  const sinA=Math.sin(LAT*R)*Math.sin(decl*R)+Math.cos(LAT*R)*Math.cos(decl*R)*Math.cos(ha);
+  const alt=Math.asin(Math.max(-1,Math.min(1,sinA)));
+  const cosAz=(Math.sin(decl*R)-Math.sin(LAT*R)*sinA)/(Math.cos(LAT*R)*Math.cos(alt)+1e-10);
+  let az=Math.acos(Math.max(-1,Math.min(1,cosAz)));
+  if(ha>0)az=2*Math.PI-az;
+  return{alt:alt/R,az:az/R,altR:alt,azR:az}
+}
+function shXY(h,alt,az){
+  if(alt<=1)return null;
+  const len=h/Math.tan(alt*R);
+  return{dx:len*Math.sin((az+180)*R),dy:len*Math.cos((az+180)*R)}
+}
+function dst(a,b,c,d){return Math.sqrt((c-a)**2+(d-b)**2)}
+function ldst(px,py,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
+  if(!l2)return dst(px,py,x1,y1);
+  let t=((px-x1)*dx+(py-y1)*dy)/l2;
+  t=Math.max(0,Math.min(1,t));
+  return dst(px,py,x1+t*dx,y1+t*dy)
+}
+function pip(px,py,poly){
+  let ins=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if((yi>py)!==(yj>py)&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)ins=!ins;
+  }
+  return ins
+}
+function cross(o,a,b){
+  return (a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x)
+}
+function hull(points){
+  const pts=[...points].sort((a,b)=>a.x===b.x?a.y-b.y:a.x-b.x);
+  if(pts.length<=1)return pts;
+  const lo=[],up=[];
+  for(const p of pts){
+    while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();
+    lo.push(p);
+  }
+  for(let i=pts.length-1;i>=0;i--){
+    const p=pts[i];
+    while(up.length>=2&&cross(up[up.length-2],up[up.length-1],p)<=0)up.pop();
+    up.push(p);
+  }
+  lo.pop();up.pop();
+  return lo.concat(up)
+}
+function polyHitsCircle(px,py,r,poly){
+  if(poly.length<3)return false;
+  if(pip(px,py,poly))return true;
+  for(let i=0;i<poly.length;i++){
+    const j=(i+1)%poly.length;
+    if(ldst(px,py,poly[i].x,poly[i].y,poly[j].x,poly[j].y)<r)return true;
+  }
+  return false
+}
+function boxFootprint(){
+  const bAng=DANG[boxDir]||0,bOff=8;
+  const bcx=bOff*Math.sin(bAng*R),bcy=bOff*Math.cos(bAng*R);
+  const bPerp=bAng+90,bhw=BOX_W/2,bhd=BOX_D/2;
+  return[
+    {x:bcx-bhw*Math.sin(bPerp*R)+bhd*Math.sin(bAng*R),y:bcy-bhw*Math.cos(bPerp*R)+bhd*Math.cos(bAng*R)},
+    {x:bcx+bhw*Math.sin(bPerp*R)+bhd*Math.sin(bAng*R),y:bcy+bhw*Math.cos(bPerp*R)+bhd*Math.cos(bAng*R)},
+    {x:bcx+bhw*Math.sin(bPerp*R)-bhd*Math.sin(bAng*R),y:bcy+bhw*Math.cos(bPerp*R)-bhd*Math.cos(bAng*R)},
+    {x:bcx-bhw*Math.sin(bPerp*R)-bhd*Math.sin(bAng*R),y:bcy-bhw*Math.cos(bPerp*R)-bhd*Math.cos(bAng*R)}
+  ]
+}
+function projectPoly(poly,h,sun){
+  const s=shXY(h,sun.alt,sun.az);
+  if(!s)return[];
+  return poly.map(p=>({x:p.x+s.dx,y:p.y+s.dy}))
+}
+function boxShadowPoly(sun){
+  const base=boxFootprint();
+  const bottom=projectPoly(base,BOX_MOUNT,sun);
+  const top=projectPoly(base,BOX_MOUNT+BOX_HT,sun);
+  if(bottom.length!==4||top.length!==4)return[];
+  return hull(bottom.concat(top))
+}
+function checkAll(armLen,armAng,beamR,sun){
+  if(sun.alt<=1)return{hit:false,src:''};
+  const sx=armLen*Math.sin(armAng*R),sy=armLen*Math.cos(armAng*R);
+  const ms=shXY(MAST_H,sun.alt,sun.az);
+  if(ms&&ldst(sx,sy,0,0,ms.dx,ms.dy)<beamR+MAST_R)return{hit:true,src:'mast'};
+  for(const a of[0,120,240]){
+    const lx=LEG_SP*Math.sin(a*R),ly=LEG_SP*Math.cos(a*R);
+    const ts=shXY(HUB_H,sun.alt,sun.az);
+    if(ts&&ldst(sx,sy,lx,ly,lx+ts.dx,ly+ts.dy)<beamR+LEG_R)return{hit:true,src:'leg'};
+  }
+  const hw=PW/2,pcy=PANEL_CY;
+  const panelC=[{x:-hw,y:pcy,h:PM_H+P_VERT},{x:hw,y:pcy,h:PM_H+P_VERT},{x:hw,y:pcy-P_PROJ,h:PM_H},{x:-hw,y:pcy-P_PROJ,h:PM_H}];
+  let sp=[];panelC.forEach(c=>{const s=shXY(c.h,sun.alt,sun.az);if(s)sp.push({x:c.x+s.dx,y:c.y+s.dy})});
+  if(sp.length===4){
+    if(pip(sx,sy,sp))return{hit:true,src:'panel'};
+    for(let i=0;i<4;i++){const j=(i+1)%4;if(ldst(sx,sy,sp[i].x,sp[i].y,sp[j].x,sp[j].y)<beamR)return{hit:true,src:'panel'}}
+  }
+  const bp=boxShadowPoly(sun);
+  if(polyHitsCircle(sx,sy,beamR,bp))return{hit:true,src:'box'};
+  return{hit:false,src:''}
+}
+
+function setDir(d){armDir=d;update()}
+function setBox(d){boxDir=d;update()}
+function fmtTime(h){
+  const hr=Math.floor(h),mn=Math.round((h-hr)*60);
+  const ap=hr>=12?'PM':'AM',h12=hr>12?hr-12:(hr===0?12:hr);
+  return h12+':'+(mn<10?'0':'')+mn+' '+ap
+}
+function calcStats(armLen,armAng,decl){
+  const beamR=MAST_H*Math.tan(BEAM_HA);
+  let hit=0,day=0;
+  for(let i=0;i<96;i++){
+    const hr=6+(12*i/96);
+    const sun=sunPos(hr,decl);
+    if(sun.alt<=1)continue;
+    day+=12/96;
+    if(checkAll(armLen,armAng,beamR,sun).hit)hit+=12/96;
+  }
+  return{hit,day}
+}
+
+function update(){
+  const hour=parseFloat(document.getElementById('timeSlider').value);
+  const armLen=parseFloat(document.getElementById('armSlider').value);
+  document.getElementById('timeVal').textContent=fmtTime(hour);
+  document.getElementById('armVal').textContent=armLen+'"';
+  const decl=season==='winter'?-23.44:(season==='summer'?23.44:0);
+  const sun=sunPos(hour,decl);
+  const armAng=DANG[armDir]||0;
+  const beamR=MAST_H*Math.tan(BEAM_HA);
+  const chk=checkAll(armLen,armAng,beamR,sun);
+
+  // Highlight buttons
+  document.querySelectorAll('#seasonBtns .btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('s'+(season==='winter'?'Win':(season==='summer'?'Sum':'Eq'))).classList.add('on');
+  document.querySelectorAll('#dirBtns .btn').forEach(b=>b.classList.remove('on','warn'));
+  const dId='d'+{north:'N',northeast:'NE',east:'E',southeast:'SE',south:'S',southwest:'SW',west:'W',northwest:'NW'}[armDir];
+  document.getElementById(dId)?.classList.add('on');
+  document.querySelectorAll('#boxBtns .btn').forEach(b=>b.classList.remove('on'));
+  const bId='b'+{north:'N',northeast:'NE',east:'E',southeast:'SE',south:'S',southwest:'SW',west:'W',northwest:'NW'}[boxDir];
+  document.getElementById(bId)?.classList.add('on');
+
+  // ---- MAP ----
+  const below=sun.alt<=1;
+  const tP='#c8cdd8',tS='#5a6174';
+  const gC='rgba(90,97,116,0.08)',gC2='rgba(90,97,116,0.15)';
+  let svg='';
+  for(let r=20;r<=80;r+=20){
+    const[cx,cy]=toS(0,0);
+    svg+=`<circle cx="${cx}" cy="${cy}" r="${r*SC}" fill="none" stroke="${gC2}" stroke-width="0.5"/>`;
+    svg+=`<text x="${cx+r*SC+2}" y="${cy+4}" fill="${tS}" font-size="9" font-family="IBM Plex Mono,monospace" opacity="0.5">${r}"</text>`;
+  }
+  svg+=`<text x="${CX}" y="14" fill="${tS}" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">N</text>`;
+  svg+=`<text x="${CX}" y="496" fill="${tS}" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">S</text>`;
+  svg+=`<text x="20" y="${CY+4}" fill="${tS}" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">W</text>`;
+  svg+=`<text x="660" y="${CY+4}" fill="${tS}" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">E</text>`;
+  svg+=`<line x1="${CX}" y1="20" x2="${CX}" y2="490" stroke="${gC}" stroke-width="0.5"/>`;
+  svg+=`<line x1="30" y1="${CY}" x2="650" y2="${CY}" stroke="${gC}" stroke-width="0.5"/>`;
+
+  if(!below){
+    const ms=shXY(MAST_H,sun.alt,sun.az);
+    if(ms){const[mx,my]=toS(0,0),[sx2,sy2]=toS(ms.dx,ms.dy);svg+=`<line x1="${mx}" y1="${my}" x2="${sx2}" y2="${sy2}" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>`}
+    for(const a of[0,120,240]){
+      const lx=LEG_SP*Math.sin(a*R),ly=LEG_SP*Math.cos(a*R);const[lsx,lsy]=toS(lx,ly);
+      const ts=shXY(HUB_H,sun.alt,sun.az);
+      if(ts){const[tsx,tsy]=toS(lx+ts.dx,ly+ts.dy);svg+=`<line x1="${lsx}" y1="${lsy}" x2="${tsx}" y2="${tsy}" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>`}
+      svg+=`<circle cx="${lsx}" cy="${lsy}" r="2.5" fill="#6b7280" opacity="0.4"/>`;
+    }
+    const hw=PW/2,pcy=PANEL_CY;
+    const panelC=[{x:-hw,y:pcy,h:PM_H+P_VERT},{x:hw,y:pcy,h:PM_H+P_VERT},{x:hw,y:pcy-P_PROJ,h:PM_H},{x:-hw,y:pcy-P_PROJ,h:PM_H}];
+    let pp=[];panelC.forEach(c=>{const s=shXY(c.h,sun.alt,sun.az);if(s)pp.push(toS(c.x+s.dx,c.y+s.dy))});
+    if(pp.length===4)svg+=`<polygon points="${pp.map(p=>p[0]+','+p[1]).join(' ')}" fill="#fb923c" opacity="0.16" stroke="#fb923c" stroke-width="0.5" stroke-opacity="0.25"/>`;
+    const bp2=boxShadowPoly(sun);
+    if(bp2.length>=3)svg+=`<polygon points="${bp2.map(p=>toS(p.x,p.y).join(',')).join(' ')}" fill="#a78bfa" opacity="0.14" stroke="#a78bfa" stroke-width="0.5" stroke-opacity="0.2"/>`;
+    const sunD=110;
+    const sunSX=Math.max(28,Math.min(652,CX+sunD*SC*Math.sin(sun.azR)));
+    const sunSY=Math.max(20,Math.min(470,CY-sunD*SC*Math.cos(sun.azR)));
+    svg+=`<circle cx="${sunSX}" cy="${sunSY}" r="9" fill="#fbbf24" opacity="0.55"/>`;
+    svg+=`<circle cx="${sunSX}" cy="${sunSY}" r="13" fill="none" stroke="#fbbf24" stroke-width="0.5" opacity="0.3"/>`;
+    svg+=`<text x="${sunSX}" y="${sunSY+18}" fill="#fbbf24" font-size="9" font-family="IBM Plex Mono,monospace" text-anchor="middle" font-weight="500">${Math.round(sun.alt)}°</text>`;
+  }
+  // Panel physical
+  const pcx0=0,pcy0=-6;
+  const[pA,pB]=toS(-PW/2,pcy0),[pC,pD]=toS(PW/2,pcy0-P_PROJ);
+  svg+=`<rect x="${Math.min(pA,pC)}" y="${Math.min(pB,pD)}" width="${Math.abs(pC-pA)}" height="${Math.abs(pD-pB)||3}" rx="2" fill="#a78bfa" opacity="0.45" stroke="#a78bfa" stroke-width="0.5"/>`;
+  svg+=`<text x="${CX}" y="${Math.max(pB,pD)+12}" fill="#a78bfa" font-size="9" font-family="IBM Plex Mono,monospace" text-anchor="middle" font-weight="500">panel</text>`;
+  // Box physical
+  const bAng3=(DANG[boxDir]||0)*R,bOff3=8;
+  const[bx3,by3]=toS(bOff3*Math.sin(bAng3),bOff3*Math.cos(bAng3));
+  const bRW=BOX_W*SC,bRH=BOX_D*SC;
+  svg+=`<g transform="translate(${bx3},${by3}) rotate(${-(DANG[boxDir]||0)})"><rect x="${-bRW/2}" y="${-bRH/2}" width="${bRW}" height="${bRH}" rx="3" fill="#a78bfa" opacity="0.25" stroke="#a78bfa" stroke-width="0.5"/></g>`;
+  svg+=`<text x="${bx3}" y="${by3-bRH/2-5}" fill="#a78bfa" font-size="8" font-family="IBM Plex Mono,monospace" text-anchor="middle" font-weight="500">box</text>`;
+  // Sensor
+  const sDx=armLen*Math.sin(armAng*R),sDy=armLen*Math.cos(armAng*R);
+  const[ax,ay]=toS(sDx,sDy);const[mx2,my2]=toS(0,0);
+  svg+=`<line x1="${mx2}" y1="${my2}" x2="${ax}" y2="${ay}" stroke="${tS}" stroke-width="2" stroke-linecap="round"/>`;
+  const bFill=chk.hit?'rgba(248,113,113,0.1)':'rgba(52,211,153,0.1)';
+  const bStroke=chk.hit?'#f87171':'#34d399';
+  svg+=`<circle cx="${ax}" cy="${ay}" r="${beamR*SC}" fill="${bFill}" stroke="${bStroke}" stroke-width="1" stroke-dasharray="4 3"/>`;
+  svg+=`<rect x="${ax-6}" y="${ay-6}" width="12" height="12" rx="3" fill="#3b9eff" stroke="#2563eb" stroke-width="0.5"/>`;
+  svg+=`<text x="${ax}" y="${ay+20}" fill="${tP}" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle" font-weight="500">${DLBL[armDir]}</text>`;
+  // Mast
+  svg+=`<circle cx="${mx2}" cy="${my2}" r="${3*SC}" fill="rgba(90,97,116,0.15)" stroke="${tS}" stroke-width="0.5"/>`;
+  svg+=`<circle cx="${mx2}" cy="${my2}" r="3.5" fill="${tS}"/>`;
+  document.getElementById('map').innerHTML=svg;
+
+  // ---- TIMELINE ----
+  buildTimeline(armLen,armAng,decl,hour);
+
+  // ---- COMPARISON ----
+  buildCompare(armLen,decl);
+
+  // ---- STATUS ----
+  const sLabel=season==='winter'?'Winter solstice':(season==='summer'?'Summer solstice':'Equinox');
+  const stEl=document.getElementById('statusBox');
+  let warnings=[];
+  if(armDir===boxDir)warnings.push('sensor and box on same side');
+  if(armDir==='south')warnings.push('sensor near panel structure');
+  if(boxDir==='south')warnings.push('box blocks panel access');
+  const warnHtml=warnings.length?`<br><span style="color:#f87171">${warnings.join(' // ')}</span>`:'';
+  if(below){
+    stEl.style.borderColor='var(--border)';
+    stEl.innerHTML=`<b>${sLabel}</b> ${fmtTime(hour)} — sun below horizon${warnHtml}`;
+  }else if(chk.hit){
+    stEl.style.borderColor='rgba(248,113,113,0.3)';
+    stEl.innerHTML=`<b>${sLabel}</b> ${fmtTime(hour)} — <span style="color:#f87171">${chk.src} shadow on beam</span> // sun ${Math.round(sun.alt)}° el, ${Math.round(sun.az)}° az${warnHtml}`;
+  }else{
+    stEl.style.borderColor='rgba(52,211,153,0.3)';
+    stEl.innerHTML=`<b>${sLabel}</b> ${fmtTime(hour)} — <span style="color:#34d399">clear</span> // sun ${Math.round(sun.alt)}° el, ${Math.round(sun.az)}° az${warnHtml}`;
+  }
+}
+
+function buildTimeline(armLen,armAng,decl,curHour){
+  const tS2='#5a6174';
+  let svg='';
+  const lf=50,rt=650,y0=8,bh=28,steps=96,stepW=(rt-lf)/steps;
+  let hitH=0,dayH=0;
+  for(let i=0;i<steps;i++){
+    const hr=6+(12*i/steps);const sun=sunPos(hr,decl);const below=sun.alt<=1;
+    const bR=MAST_H*Math.tan(BEAM_HA);
+    const h=!below&&checkAll(armLen,armAng,bR,sun).hit;
+    const x=lf+i*stepW;
+    let fill;
+    if(below)fill='rgba(90,97,116,0.15)';
+    else if(h){fill='rgba(248,113,113,0.5)';hitH+=12/steps}
+    else{fill='rgba(52,211,153,0.2)';dayH+=12/steps}
+    svg+=`<rect x="${x}" y="${y0}" width="${stepW+.5}" height="${bh}" fill="${fill}"/>`;
+  }
+  svg+=`<rect x="${lf}" y="${y0}" width="${rt-lf}" height="${bh}" fill="none" stroke="rgba(90,97,116,0.15)" stroke-width="0.5" rx="4"/>`;
+  const curX=lf+((curHour-6)/12)*(rt-lf);
+  svg+=`<line x1="${curX}" y1="${y0-2}" x2="${curX}" y2="${y0+bh+2}" stroke="#c8cdd8" stroke-width="1.5" stroke-linecap="round"/>`;
+  svg+=`<circle cx="${curX}" cy="${y0-2}" r="2.5" fill="#c8cdd8"/>`;
+  for(let h=6;h<=18;h+=2){
+    const x=lf+((h-6)/12)*(rt-lf);
+    const lbl=h>12?(h-12)+'p':(h===12?'12p':h+'a');
+    svg+=`<text x="${x}" y="${y0+bh+14}" fill="${tS2}" font-size="9" font-family="IBM Plex Mono,monospace" text-anchor="middle">${lbl}</text>`;
+  }
+  const txt=`${hitH.toFixed(1)}h shadow / ${(hitH+dayH).toFixed(1)}h sun-up in 06:00-18:00`;
+  svg+=`<text x="${(lf+rt)/2}" y="${y0+bh+28}" fill="${hitH>0?'#f87171':'#34d399'}" font-size="10" font-weight="500" font-family="IBM Plex Mono,monospace" text-anchor="middle">${txt}</text>`;
+  document.getElementById('timeline').innerHTML=svg;
+}
+
+function buildCompare(armLen,decl){
+  const tP2='#c8cdd8',tS2='#5a6174';
+  const dirs=['north','northeast','east','southeast','south','southwest','west','northwest'];
+  const labels=['N','NE','E','SE','S','SW','W','NW'];
+  let svg='';
+  const sLbl=season==='winter'?'winter':(season==='summer'?'summer':'equinox');
+  svg+=`<text x="170" y="14" fill="${tP2}" font-size="10" font-weight="500" font-family="IBM Plex Mono,monospace" text-anchor="middle">${sLbl} // ${armLen}" arm</text>`;
+  const lf=36,rt=300,y0=26,barH=18,gap=4;
+  const stats=dirs.map(d=>calcStats(armLen,DANG[d],decl));
+  let maxH=Math.max(...stats.map(s=>s.hit),0.5);
+  const barSc=(rt-lf)/maxH;
+  dirs.forEach((d,i)=>{
+    const y=y0+i*(barH+gap);
+    const isA=d===armDir;
+    const w=Math.max(stats[i].hit*barSc,0);
+    const col=stats[i].hit>0?(isA?'#f87171':'rgba(248,113,113,0.3)'):(isA?'#34d399':'rgba(52,211,153,0.25)');
+    svg+=`<text x="${lf-6}" y="${y+barH/2+4}" fill="${isA?tP2:tS2}" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="end" font-weight="${isA?'600':'400'}">${labels[i]}</text>`;
+    svg+=`<rect x="${lf}" y="${y}" width="${rt-lf}" height="${barH}" rx="3" fill="rgba(90,97,116,0.08)"/>`;
+    if(w>0)svg+=`<rect x="${lf}" y="${y}" width="${w}" height="${barH}" rx="3" fill="${col}"/>`;
+    const label=stats[i].hit>0?stats[i].hit.toFixed(1)+'h':'0h';
+    const lx=w>35?lf+w-5:lf+Math.max(w,0)+5;
+    const anc=w>35?'end':'start';
+    const lc=stats[i].hit>0?'#f87171':'#34d399';
+    svg+=`<text x="${lx}" y="${y+barH/2+4}" fill="${lc}" font-size="9" font-family="IBM Plex Mono,monospace" text-anchor="${anc}" font-weight="500">${label}</text>`;
+  });
+  document.getElementById('compare').innerHTML=svg;
+}
+
+let playStart=null;
+function togglePlay(){
+  if(playing){stopPlay();return}
+  playing=true;
+  document.getElementById('playBtn').innerHTML='&#9646;&#9646;';
+  playStart=performance.now();
+  const dur=10000;
+  function step(ts){
+    if(!playing)return;
+    const frac=((ts-playStart)%dur)/dur;
+    document.getElementById('timeSlider').value=6+frac*12;
+    update();
+    animId=requestAnimationFrame(step);
+  }
+  animId=requestAnimationFrame(step);
+}
+function stopPlay(){
+  playing=false;
+  document.getElementById('playBtn').innerHTML='&#9654;';
+  if(animId)cancelAnimationFrame(animId);
+}
+document.getElementById('timeSlider').addEventListener('mousedown',stopPlay);
+document.getElementById('timeSlider').addEventListener('touchstart',stopPlay);
+update();
+</script>
+</body>
+</html>
